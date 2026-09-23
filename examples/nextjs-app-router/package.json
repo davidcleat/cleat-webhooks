@@ -1,0 +1,23 @@
+{
+  "name": "cleat-webhook-nextjs-app-router",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Receive and verify a Cleat webhook in a Next.js App Router route handler",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.2",
+    "@types/react": "19.3.0",
+    "next": "^16.3.6",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "cleat-webhooks-examples",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Runnable examples of receiving and verifying Cleat's signed webhook",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "examples/node-express",
+    "examples/nextjs-app-router",
+    "examples/cloudflare-worker"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present"
+  },
+  "engines": { "node": ">=20" }
+}
