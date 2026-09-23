@@ -166,17 +166,20 @@ Nothing in the payload marks a message as having come from a call rather than a 
 ## Delivery, retries and catching up
 
 - Cleat POSTs as soon as it has stored the message. Answer any 2xx within 10 seconds. If your work is slower than that, queue it and answer immediately.
-- Each message is posted once, but a failed attempt is retried on a backoff, so the same `data.id` can arrive more than once. **Your handler must be idempotent on `data.id`.** The examples use a small in-memory set so they run with no setup; that set is per-process, so it is wrong for anything real. Key on the message id in your database (a unique index, treating a duplicate-key error as "already handled") or in a durable key-value store with a TTL of a day or so.
+- Each message is posted once, but a failed attempt is retried: five attempts in all, the first straight away and the rest after 30 seconds, 2 minutes, 10 minutes and an hour. Every attempt sends the same bytes with a fresh `t` and a fresh signature, so the same `data.id` can arrive more than once. **Your handler must be idempotent on `data.id`.** The examples use a small in-memory set so they run with no setup; that set is per-process, so it is wrong for anything real. Key on the message id in your database (a unique index, treating a duplicate-key error as "already handled") or in a durable key-value store with a TTL of a day or so.
 - A webhook endpoint can be down. To catch up afterwards, read the REST API: `GET /api/v1/lines/{lineId}/messages?after=<receivedAt of the last message you handled>` returns messages received strictly after that moment, oldest first, so you can walk forward and keep the last `receivedAt` as your cursor.
-- A test delivery is a synthetic message, and it may carry a placeholder message id. A handler that is correctly idempotent on `data.id` can therefore report the second test delivery in a row as a duplicate. That is the idempotency check working, not a broken endpoint.
-- A workspace can have up to five endpoints.
+- After the fifth failure the delivery is given up on. Workspace settings keeps every attempt and its response, and can replay any delivery — a replay sends the same body again, as a new delivery.
+- A test delivery is a synthetic message with its own fresh ids, so sending two in a row is not treated as a duplicate by a handler that keys on `data.id`. Its `service`, `contact` and `label` are `null`.
+- Nothing is posted at all while a line is on hold for non-payment, or before its workspace owner has verified their identity. Those messages are stored and readable over the API as soon as the reason clears, but no webhook is ever sent for them — catch up with `?after=`.
+- A workspace can have up to five endpoints. Only the workspace owner can add or remove them, and the signing secret is shown once, when the endpoint is created.
+- An endpoint whose URL is a Slack incoming webhook or a Microsoft Teams workflow link is not sent this envelope at all: it gets that chat app's own message format, and no `cleat-signature`, because there is no shared secret with a chat app. Everything in this repository is about an endpoint of your own.
 - The API allows 120 requests per minute per key. A 429 from Cleat carries no `Retry-After` header and no rate-limit headers, so back off on your own.
 
 ## Limits worth knowing before you build on this
 
 - Lines are **receive-only**. They receive SMS and calls; they cannot send a text, place a call, or reach 911.
 - Numbers are US mobile numbers.
-- A line belongs to one identity-verified owner, who verifies once. Until that verification is done the line still runs and keeps every message, but nothing can be read, and the API answers 403 with `code: "verify_first"`.
+- A line belongs to one identity-verified owner, who verifies once. Until that verification is done the line still runs, keeps every message and posts nothing to your endpoint, and reading messages over the API answers 403 with `code: "verify_first"`. Listing lines is not gated on it.
 - An unpaid line goes to `grace`: messages are held and the API answers 402 until it is resubscribed. A released number is gone.
 - Most services that refuse VoIP numbers accept a real mobile line, but nobody can promise that any particular service will accept any particular number.
 - These examples use their own accounts as the example throughout: your own signup, your own cloud console, your own registrar, your own QA flow.
