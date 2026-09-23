@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  node:
+    name: Node examples
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # The Next.js example's route handler is TypeScript, run directly by
+          # Node's type stripping, which needs 22.18 or newer.
+          node-version: "22"
+      - run: npm install
+      - run: npm test
+
+  python:
+    name: FastAPI example
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: examples/python-fastapi
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q
